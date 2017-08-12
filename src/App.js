@@ -1,4 +1,5 @@
 import React, { Component } from 'react'
+import { Table, Jumbotron } from 'react-bootstrap'
 import { extend } from 'lodash'
 import { SearchkitManager,SearchkitProvider,
   SearchBox, RefinementListFilter, Pagination,
@@ -8,20 +9,54 @@ import { SearchkitManager,SearchkitProvider,
   InputFilter, GroupedSelectedFilters,
   Layout, TopBar, LayoutBody, LayoutResults,
   ActionBar, ActionBarRow, SideBar } from 'searchkit'
+import { Chart, Pies, Title, Transform } from 'rumble-charts'
 import './index.css'
 
-const host = "http://demo.searchkit.co/api/movies"
+// const host = "http://demo.searchkit.co/api/movies"
+const host = "http://localhost:9200/wordlist";
 const searchkit = new SearchkitManager(host)
 
 const MovieHitsGridItem = (props)=> {
   const {bemBlocks, result} = props
   let url = "http://www.imdb.com/title/" + result._source.imdbId
   const source:any = extend({}, result._source, result.highlight)
+  var dontKnow = props.result._source.totalCount - props.result._source.knowCount
+  var series = [{
+            data: [{y: props.result._source.totalCount, color: 'red'}, {y: props.result._source.knowCount, color: 'green'}]
+        }]
   return (
     <div className={bemBlocks.item().mix(bemBlocks.container("item"))} data-qa="hit">
       <a href={url} target="_blank">
-        <img data-qa="poster" alt="presentation" className={bemBlocks.item("poster")} src={result._source.poster} width="170" height="240"/>
-        <div data-qa="title" className={bemBlocks.item("title")} dangerouslySetInnerHTML={{__html:source.title}}>
+        <div>
+          <Jumbotron width="170" height="240">
+            <Table>
+                  <tbody>
+                  <tr>
+                      <td>
+                          <p>{props.result._source.meaning}</p>
+                      </td>
+                      <td>
+                          <Chart width={170} height={50} series={series}>
+                              <Transform method={['transpose', 'stack']}>
+                                  <Pies 
+                                      colors = 'category10'
+                                      combined={true} 
+                                      pieAttributes={{
+                                          onMouseMove: (e) => e.target.style.opacity = 1.5,
+                                          onMouseLeave: (e) => e.target.style.opacity = 0.85
+                                      }}
+                                      pieStyle={{opacity: 0.85}}
+                                      />
+                              </Transform>
+                          </Chart>
+                      </td>
+                  </tr>
+                  </tbody>
+              </Table>
+          </Jumbotron>
+        </div>
+        <div data-qa="title" className={bemBlocks.item("title")}>
+          <h1>{props.result._source.word}</h1>
         </div>
       </a>
     </div>
@@ -47,13 +82,22 @@ const MovieHitsListItem = (props)=> {
 }
 
 class App extends Component {
+
+  constructor(props) {
+
+      super(props);
+  }
+
   render() {
     return (
       <SearchkitProvider searchkit={searchkit}>
         <Layout>
           <TopBar>
-            <div className="my-logo">Searchkit Acme co</div>
-            <SearchBox autofocus={true} searchOnChange={true} prefixQueryFields={["actors^1","type^2","languages","title^10"]}/>
+            <div className="my-logo">Vocab<br/>Builder</div>
+            <SearchBox 
+                autofocus={true} 
+                searchOnChange={false}
+                queryFields={["word"]}/>
           </TopBar>
 
         <LayoutBody>
@@ -62,7 +106,7 @@ class App extends Component {
             <HierarchicalMenuFilter fields={["type.raw", "genres.raw"]} title="Categories" id="categories"/>
             <DynamicRangeFilter field="metaScore" id="metascore" title="Metascore" rangeFormatter={(count)=> count + "*"}/>
             <RangeFilter min={0} max={10} field="imdbRating" id="imdbRating" title="IMDB Rating" showHistogram={true}/>
-            <InputFilter id="writers" searchThrottleTime={500} title="Writers" placeholder="Search writers" searchOnChange={true} queryFields={["writers"]} />
+            <InputFilter id="writers" searchThrottleTime={500} title="Alphabets" placeholder="Search Alphabets" searchOnChange={true} queryFields={["writers"]} />
             <RefinementListFilter id="actors" title="Actors" field="actors.raw" size={10}/>
             <RefinementListFilter translations={{"facets.view_more":"View more writers"}} id="writers" title="Writers" field="writers.raw" operator="OR" size={10}/>
             <RefinementListFilter id="countries" title="Countries" field="countries.raw" operator="OR" size={10}/>
@@ -95,15 +139,14 @@ class App extends Component {
 
             </ActionBar>
             <ViewSwitcherHits
-                hitsPerPage={12} highlightFields={["title","plot"]}
-                sourceFilter={["plot", "title", "poster", "imdbId", "imdbRating", "year"]}
+                hitsPerPage={20} highlightFields={["word"]}
                 hitComponents={[
                   {key:"grid", title:"Grid", itemComponent:MovieHitsGridItem, defaultOption:true},
                   {key:"list", title:"List", itemComponent:MovieHitsListItem}
                 ]}
                 scrollTo="body"
             />
-            <NoHits suggestionsField={"title"}/>
+            <NoHits suggestionsField={"word"}/>
             <Pagination showNumbers={true}/>
           </LayoutResults>
 
